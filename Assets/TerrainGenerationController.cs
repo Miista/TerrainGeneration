@@ -17,7 +17,8 @@ public class TerrainGenerationController : MonoBehaviour
     public double Threshold;
 
     /// <summary>
-    ///     The player
+    ///     The player.
+    ///     This should be the top-most container of the player.
     /// </summary>
     public GameObject Player;
 
