@@ -17,7 +17,8 @@ public class TerrainGenerationController : MonoBehaviour
     public double Threshold;
 
     /// <summary>
-    ///     The player
+    ///     The player.
+    ///     This should be the top-most container of the player.
     /// </summary>
     public GameObject Player;
 
@@ -220,32 +221,43 @@ public class TerrainGenerationController : MonoBehaviour
                     y = 0,
                     z = zOffset + ( row * _cellSize.z )
                 };
-                if ( !_grid.ContainsKey(spawnPoint) )
+                if ( _grid.ContainsKey( spawnPoint ) )
                 {
-                    var primitive = TerrainProvider.CreateTerrain( _cellSize, spawnPoint );
-                    _grid[spawnPoint] = primitive;
+                    continue;
                 }
+                var primitive = TerrainProvider.CreateTerrain( _cellSize, spawnPoint );
+                _grid[spawnPoint] = primitive;
             }
 
         }
 
-        var upperRow = _spawnPoint + new Vector3(0, 0, _cellSize.z);
-        var e1 = _grid.Keys.Where(v => v.z > upperRow.z);
+        RemoveObsoleteCells();
+    }
 
-        var loverRow = _spawnPoint - new Vector3(0, 0, _cellSize.z);
-        var e2 = _grid.Keys.Where(v => v.z < loverRow.z);
+    /// <summary>
+    ///     Remove the cells that the player can (should) no longer see.
+    /// </summary>
+    private void RemoveObsoleteCells()
+    {
+        var upperRow = _spawnPoint + new Vector3( 0, 0, _cellSize.z );
+        var e1 = _grid.Keys.Where( v => v.z > upperRow.z );
 
-        var leftColumn = _spawnPoint - new Vector3(_cellSize.x, 0, 0);
-        var e3 = _grid.Keys.Where(v => v.x < leftColumn.x);
+        var lowerRow = _spawnPoint - new Vector3( 0, 0, _cellSize.z );
+        var e2 = _grid.Keys.Where( v => v.z < lowerRow.z );
 
-        var rightColumn = _spawnPoint + new Vector3(_cellSize.x, 0, 0);
-        var e4 = _grid.Keys.Where(v => v.x > rightColumn.x);
+        var leftColumn = _spawnPoint - new Vector3( _cellSize.x, 0, 0 );
+        var e3 = _grid.Keys.Where( v => v.x < leftColumn.x );
 
-        var obsoleteCells = e1.Union(e2).Union(e3).Union(e4);
+        var rightColumn = _spawnPoint + new Vector3( _cellSize.x, 0, 0 );
+        var e4 = _grid.Keys.Where( v => v.x > rightColumn.x );
+
+        var obsoleteCells = e1.Union( e2 )
+                              .Union( e3 )
+                              .Union( e4 );
         foreach (var v in obsoleteCells.ToList())
         {
-            Destroy(_grid[v]);
-            _grid.Remove(v);
+            Destroy( _grid[v] );
+            _grid.Remove( v );
         }
     }
 }
