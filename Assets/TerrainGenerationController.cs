@@ -35,28 +35,34 @@ public class TerrainGenerationController : MonoBehaviour
     ///         [threshold in percentage] * 0,01 * [size of cell]
     ///     </code>
     /// </summary>
-    private double _threshold
-    {
-        get { return _cellSize.x * (Threshold * 0.01); }
-    }
+    /// <remarks>
+    ///     Invariant: This value should never change between calls.
+    /// </remarks>
+    private double _threshold;
 
     private readonly Dictionary<Vector3, GameObject> _grid = new Dictionary<Vector3, GameObject>();
 
-    private double BoundaryX
-    {
-        get
-        {
-            return _cellSize.x / 2 + _threshold;
-        }
-    }
+    /// <summary>
+    ///     This is defined as:
+    ///     <code>
+    ///         ([width of cell] / 2) + _threshold
+    ///     </code>
+    /// </summary>
+    /// <remarks>
+    ///     Invariant: This value should never change between calls.
+    /// </remarks>
+    private double BoundaryX;
 
-    private double BoundaryY
-    {
-        get
-        {
-            return _cellSize.z / 2 + _threshold;
-        }
-    }
+    /// <summary>
+    ///     This is defined as:
+    ///     <code>
+    ///         ([height of cell] / 2) + _threshold
+    ///     </code>
+    /// </summary>
+    /// <remarks>
+    ///     Invariant: This value should never change between calls.
+    /// </remarks>
+    private double BoundaryY;
 
     /// <summary>
     ///     The center point of the current cell in which the player is.
@@ -70,10 +76,10 @@ public class TerrainGenerationController : MonoBehaviour
     ///     <code>
     ///         [size of grid] / 3
     ///     </code>
-    ///     <remarks>
-    ///         Invariant: The value of _cellSize should never change between calls.
-    ///     </remarks>
     /// </summary>
+    /// <remarks>
+    ///     Invariant: This value should never change between calls.
+    /// </remarks>
     private Vector3 _cellSize;
 
     /// <summary>
@@ -98,6 +104,9 @@ public class TerrainGenerationController : MonoBehaviour
             y = 1,
 	        z = Size / 3
 	    };
+        _threshold = _cellSize.x * (Threshold * 0.01);
+        BoundaryX = _cellSize.x / 2 + _threshold;
+        BoundaryY = _cellSize.z / 2 + _threshold;
         GenerateFromSpawnPoint();
 	}
 
