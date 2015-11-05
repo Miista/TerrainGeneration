@@ -51,7 +51,7 @@ public class TerrainGenerationController : MonoBehaviour
     /// <remarks>
     ///     Invariant: This value should never change between calls.
     /// </remarks>
-    private double BoundaryX;
+    private double _boundaryX;
 
     /// <summary>
     ///     This is defined as:
@@ -62,7 +62,7 @@ public class TerrainGenerationController : MonoBehaviour
     /// <remarks>
     ///     Invariant: This value should never change between calls.
     /// </remarks>
-    private double BoundaryY;
+    private double _boundaryY;
 
     /// <summary>
     ///     The center point of the current cell in which the player is.
@@ -105,8 +105,8 @@ public class TerrainGenerationController : MonoBehaviour
 	        z = Size / 3
 	    };
         _threshold = _cellSize.x * (Threshold * 0.01);
-        BoundaryX = _cellSize.x / 2 + _threshold;
-        BoundaryY = _cellSize.z / 2 + _threshold;
+        _boundaryX = _cellSize.x / 2 + _threshold;
+        _boundaryY = _cellSize.z / 2 + _threshold;
         GenerateFromSpawnPoint();
 	}
 
@@ -197,9 +197,9 @@ public class TerrainGenerationController : MonoBehaviour
             z = Player.transform.position.z - _spawnPoint.z
         };
 
-        if ( Math.Abs( delta.x ) > BoundaryX )
+        if ( Math.Abs( delta.x ) > _boundaryX )
         {
-            if ( Math.Abs( delta.z ) > BoundaryY )
+            if ( Math.Abs( delta.z ) > _boundaryY )
             {
                 if (delta.x > 0)
                 {
@@ -221,7 +221,7 @@ public class TerrainGenerationController : MonoBehaviour
                     : Direction.West;
             }
         }
-        else if ( Math.Abs( delta.z ) > BoundaryY )
+        else if ( Math.Abs( delta.z ) > _boundaryY )
         {
             return delta.z > 0 
                 ? Direction.North 
