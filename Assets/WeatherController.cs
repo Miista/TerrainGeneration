@@ -19,11 +19,6 @@ namespace WeatherControl.Core
 
         //    private readonly string Base = "http://api.openweathermap.org/data/2.5/weather?lat=0&lon=0&APPID=7472543b52ecdbc0d9c848fd2a3364ed&units=metric
 
-        private readonly IDictionary<string, string> _defaultParameters = new Dictionary<string, string>
-        {
-            { "APPID", "7472543b52ecdbc0d9c848fd2a3364ed" }
-        };
-
         private DateTime _lastFetch = DateTime.Now;
         private readonly RestClient _client;
 
