@@ -1,15 +1,10 @@
 ﻿using UnityEngine;
 
-namespace WeatherControl.Bridges
+namespace WeatherControl.Plugs.Bridges
 {
     public class RainMakerImpl : WeatherSystem {
         public TextMesh Text;
         public RainScript RainPrefab;
-
-        public override void UpdateWeather(string t)
-        {
-            Text.text = t;
-        }
 
         public override void StartRain()
         {

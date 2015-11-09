@@ -1,86 +1,95 @@
 ﻿using System;
 using System.Collections.Generic;
-using Data;
 using Newtonsoft.Json;
 using RestSharp;
 using UnityEngine;
-using WeatherControl;
+using WeatherControl.Core.Data;
+using WeatherControl.Plugs;
+using WeatherControl.Plugs.Bridges;
 
-public class WeatherController : MonoBehaviour
+namespace WeatherControl.Core
 {
-    public GeolocationProvider LocationProvider;
-    public WeatherSystem WeatherSystem;
-    public double Latitude, Longitude;
-
-//    private readonly string Base = "http://api.openweathermap.org/data/2.5/weather?lat=0&lon=0&APPID=7472543b52ecdbc0d9c848fd2a3364ed&units=metric
-
-    private readonly IDictionary<string, string> _defaultParameters = new Dictionary<string, string>
+    public class WeatherController : MonoBehaviour
     {
-        { "APPID", "7472543b52ecdbc0d9c848fd2a3364ed" }
-    };
+        public GeolocationProvider LocationProvider;
+        public WeatherSystem WeatherSystem;
 
-    private DateTime _lastFetch = DateTime.Now;
-    private readonly RestClient _client;
+        public double Latitude,
+                      Longitude;
 
-    private bool ShouldFetch
-    {
-        get { return ( DateTime.Now - _lastFetch ).Seconds > 5; }
-    }
+        //    private readonly string Base = "http://api.openweathermap.org/data/2.5/weather?lat=0&lon=0&APPID=7472543b52ecdbc0d9c848fd2a3364ed&units=metric
 
-    public WeatherController()
-    {
-        _client = new RestClient("http://api.openweathermap.org/data/2.5/");
-        _client.AddDefaultParameter("APPID", "7472543b52ecdbc0d9c848fd2a3364ed", ParameterType.GetOrPost);
-    }
-
-	// Use this for initialization
-	void Start ()
-	{
-	    LocationProvider = LocationProvider ?? new DefaultGeolocationProvider();
-        FetchWeatherData();
-	}
-
-    // Update is called once per frame
-	void Update ()
-	{
-	    if ( !ShouldFetch )
-	    {
-	        return;
-	    }
-	    FetchWeatherData();
-	}
-
-    private void FetchWeatherData()
-    {
-        _lastFetch = DateTime.Now;
-        var request = _client.CreateRequest( "weather", Method.GET );
-        request.AddParameter( "lat", Latitude )
-               .AddParameter( "lon", Longitude );
-        var response = _client.Get<object>( request );
-        RootObject deserializeObject = JsonConvert.DeserializeObject<RootObject>( response.Content );
-        WeatherSystem.StartRain();
-    }
-}
-
-public static class RestClientExtensions
-{
-    public static IRestRequest CreateRequest(this IRestClient self, string resource, Method method)
-    {
-        RestRequest request = new RestRequest( resource, method );
-        foreach (Parameter param in self.DefaultParameters)
+        private readonly IDictionary<string, string> _defaultParameters = new Dictionary<string, string>
         {
-            request.AddParameter( param );
+            { "APPID", "7472543b52ecdbc0d9c848fd2a3364ed" }
+        };
+
+        private DateTime _lastFetch = DateTime.Now;
+        private readonly RestClient _client;
+
+        private bool ShouldFetch
+        {
+            get { return (DateTime.Now - _lastFetch).Seconds > 5; }
         }
-        return request;
+
+        public WeatherController()
+        {
+            _client = new RestClient("http://api.openweathermap.org/data/2.5/");
+            _client.AddDefaultParameter("APPID", "7472543b52ecdbc0d9c848fd2a3364ed", ParameterType.GetOrPost);
+        }
+
+        // Use this for initialization
+        private void Start()
+        {
+            LocationProvider = LocationProvider ?? new DefaultGeolocationProvider();
+            FetchWeatherData();
+        }
+
+        // Update is called once per frame
+        private void Update()
+        {
+            if (!ShouldFetch)
+            {
+                return;
+            }
+            FetchWeatherData();
+        }
+
+        private void FetchWeatherData()
+        {
+            _lastFetch = DateTime.Now;
+            var request = _client.CreateRequest("weather", Method.GET);
+            request.AddParameter("lat", Latitude)
+                   .AddParameter("lon", Longitude);
+            var response = _client.Get<object>(request);
+            RootObject deserializeObject = JsonConvert.DeserializeObject<RootObject>(response.Content);
+            WeatherSystem.StartRain();
+        }
     }
+
+    public static class RestClientExtensions
+    {
+        public static IRestRequest CreateRequest(this IRestClient self, string resource, Method method)
+        {
+            RestRequest request = new RestRequest(resource, method);
+            foreach (Parameter param in self.DefaultParameters)
+            {
+                request.AddParameter(param);
+            }
+            return request;
+        }
+    }
+
 }
 
-namespace Data
+namespace WeatherControl.Core.Data
 {
     public class Coord
     {
-        public double lon { get; set; }
-        public double lat { get; set; }
+        [JsonProperty("lon")]
+        public double Longitude { get; set; }
+        [JsonProperty("lat")]
+        public double Latitude { get; set; }
     }
 
     public class Weather
@@ -135,44 +144,32 @@ namespace Data
         public string name { get; set; }
         public int cod { get; set; }
     }
-
 }
 
-namespace WeatherControl
+namespace WeatherControl.Plugs
 {
     public abstract class GeolocationProvider : UnityEngine.Object
     {
-        public abstract Geolocation GetLocation();
+        public abstract Coord GetLocation();
     }
 
+    public abstract class WeatherSystem : MonoBehaviour
+    {
+        public abstract void StartRain();
+    }
+}
+
+namespace WeatherControl.Plugs.Bridges
+{
     internal class DefaultGeolocationProvider : GeolocationProvider
     {
-        public override Geolocation GetLocation()
+        public override Coord GetLocation()
         {
-            return new Geolocation
+            return new Coord
             {
                 Latitude = 0.0,
                 Longitude = 0.0
             };
         }
-    }
-
-    public class Geolocation
-    {
-        public double Latitude { get; set; }
-        public double Longitude { get; set; }
-    }
-
-    public abstract class WeatherSystem : MonoBehaviour, IWeatherSystem
-    {
-        public abstract void UpdateWeather(string t);
-
-        public abstract void StartRain();
-    }
-
-    public interface IWeatherSystem
-    {
-        void UpdateWeather(string t);
-        void StartRain();
     }
 }
