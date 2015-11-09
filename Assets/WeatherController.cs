@@ -5,7 +5,6 @@ using RestSharp;
 using UnityEngine;
 using WeatherControl.Core.Data;
 using WeatherControl.Plugs;
-using WeatherControl.Plugs.Bridges;
 
 namespace WeatherControl.Core
 {
@@ -13,9 +12,6 @@ namespace WeatherControl.Core
     {
         public GeolocationProvider LocationProvider;
         public WeatherSystem WeatherSystem;
-
-        public double Latitude,
-                      Longitude;
 
         //    private readonly string Base = "http://api.openweathermap.org/data/2.5/weather?lat=0&lon=0&APPID=7472543b52ecdbc0d9c848fd2a3364ed&units=metric
 
@@ -36,29 +32,31 @@ namespace WeatherControl.Core
         // Use this for initialization
         private void Start()
         {
-            LocationProvider = LocationProvider ?? new DefaultGeolocationProvider();
+//            LocationProvider = LocationProvider ?? new DefaultGeolocationProvider();
             FetchWeatherData();
         }
 
         // Update is called once per frame
         private void Update()
         {
-            if (!ShouldFetch)
+            if ( ShouldFetch )
             {
-                return;
+                FetchWeatherData();
             }
-            FetchWeatherData();
         }
 
         private void FetchWeatherData()
         {
             _lastFetch = DateTime.Now;
+            var location = LocationProvider.GetLocation();
             var request = _client.CreateRequest("weather", Method.GET);
-            request.AddParameter("lat", Latitude)
-                   .AddParameter("lon", Longitude);
-            var response = _client.Get<object>(request);
-            RootObject deserializeObject = JsonConvert.DeserializeObject<RootObject>(response.Content);
-            WeatherSystem.StartRain();
+            request.AddParameter("lat", location.Latitude)
+                   .AddParameter("lon", location.Longitude);
+            request.RequestFormat = DataFormat.Json;
+            request.JsonSerializer = new RestSharpJsonNetSerializer();
+            var response = _client.Get<RootObject>(request);
+            print( response.Content );
+//            WeatherSystem.StartRain();
         }
     }
 
@@ -89,6 +87,9 @@ namespace WeatherControl.Core.Data
 
     public class Weather
     {
+        /// <summary>
+        ///     Weather condition id. See http://openweathermap.org/weather-conditions
+        /// </summary>
         public int id { get; set; }
         public string main { get; set; }
         public string description { get; set; }
@@ -102,13 +103,28 @@ namespace WeatherControl.Core.Data
         public int humidity { get; set; }
         public double temp_min { get; set; }
         public double temp_max { get; set; }
+
+        /// <summary>
+        ///     Atmospheric pressure on the sea level in hPa
+        /// </summary>
         public double sea_level { get; set; }
+
+        /// <summary>
+        ///     Atmospheric pressure on the ground level in hPa
+        /// </summary>
         public double grnd_level { get; set; }
     }
 
     public class Wind
     {
+        /// <summary>
+        ///     Wind speed in meter/sec.
+        /// </summary>
         public double speed { get; set; }
+
+        /// <summary>
+        ///     Wind direction in meteorological degrees.
+        /// </summary>
         public double deg { get; set; }
     }
 
@@ -119,7 +135,6 @@ namespace WeatherControl.Core.Data
 
     public class Sys
     {
-        public double message { get; set; }
         public string country { get; set; }
         public int sunrise { get; set; }
         public int sunset { get; set; }
@@ -128,8 +143,9 @@ namespace WeatherControl.Core.Data
     public class RootObject
     {
         public Coord coord { get; set; }
-        public List<Weather> weather { get; set; }
-        public string @base { get; set; }
+
+        [JsonProperty("weather")]
+        public List<Weather> WeatherConditions { get; set; }
         public Main main { get; set; }
         public Wind wind { get; set; }
         public Clouds clouds { get; set; }
@@ -137,13 +153,82 @@ namespace WeatherControl.Core.Data
         public Sys sys { get; set; }
         public int id { get; set; }
         public string name { get; set; }
-        public int cod { get; set; }
+    }
+
+    public class WeatherData
+    {
+        public WeatherCondition Conditions { get; set; }
+        public WindCondition Wind { get; set; }
+        public AtmosphereCondition Atmosphere { get; set; }
+        public RainCondition Rain { get; set; }
+    }
+
+    public enum SnowCondition
+    {
+        LightSnow,
+        Snow,
+        HeavySnow,
+        Sleet,
+        ShowerSleet,
+        LightRainAndSnow,
+        RainAndSnow,
+        LightShowerSnow,
+        ShowerSnow,
+        HeavyShowerSnow
+    }
+
+    public enum RainCondition
+    {
+        LightRain,
+        ModerateRain,
+        HeavyIntensityRain,
+        VeryHeavyRain,
+        ExtremeRain,
+        FreezingRain,
+        LightIntensityShowerRain,
+        ShowerRain,
+        HeavyIntensityShowerRain,
+        RaggedShowerRain
+    }
+
+    public enum AtmosphereCondition
+    {
+        Mist,
+        Smoke,
+        Haze,
+        Sand,
+        Fog,
+        Dust,
+        VolcanicAsh,
+        Squalls,
+        Tornado
+    }
+
+    public enum WindCondition
+    {
+        Calm,
+        LightBreeze,
+        GentleBreeze,
+        ModerateBreeze,
+        FreshBreeze,
+        StrongBreeze,
+        HighWind,
+        Gale,
+        SevereGale,
+        Storm,
+        ViolentStorm,
+        Hurricane
+    }
+
+    public enum WeatherCondition
+    {
+        Snow, Rain, Thunder, Clear
     }
 }
 
 namespace WeatherControl.Plugs
 {
-    public abstract class GeolocationProvider : UnityEngine.Object
+    public abstract class GeolocationProvider : MonoBehaviour
     {
         public abstract Coord GetLocation();
     }
@@ -151,6 +236,8 @@ namespace WeatherControl.Plugs
     public abstract class WeatherSystem : MonoBehaviour
     {
         public abstract void StartRain();
+
+        public abstract void SetCloudCover(int cloudiness);
     }
 }
 

@@ -11,5 +11,10 @@ namespace WeatherControl.Plugs.Bridges
             RainPrefab.RainIntensity = 0.5f;
             Text.text = "It's raining, bitch!";
         }
+
+        public override void SetCloudCover(int cloudiness)
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }
