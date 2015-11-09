@@ -1,14 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Net;
 using Data;
 using Newtonsoft.Json;
 using RestSharp;
 using UnityEngine;
+using WeatherControl;
 
 public class WeatherController : MonoBehaviour
 {
-    public TextMesh Text;
+    public GeolocationProvider LocationProvider;
+    public WeatherSystem WeatherSystem;
+    public double Latitude, Longitude;
 
 //    private readonly string Base = "http://api.openweathermap.org/data/2.5/weather?lat=0&lon=0&APPID=7472543b52ecdbc0d9c848fd2a3364ed&units=metric
 
@@ -34,6 +36,8 @@ public class WeatherController : MonoBehaviour
 	// Use this for initialization
 	void Start ()
 	{
+	    LocationProvider = LocationProvider ?? new DefaultGeolocationProvider();
+        FetchWeatherData();
 	}
 
     // Update is called once per frame
@@ -43,14 +47,19 @@ public class WeatherController : MonoBehaviour
 	    {
 	        return;
 	    }
-	    _lastFetch = DateTime.Now;
-	    var request = _client.CreateRequest( "weather", Method.GET );
-	    request.AddParameter( "lat", 0 )
-	           .AddParameter( "lon", 0 );
-	    var response = _client.Get<object>( request );
-	    RootObject deserializeObject = JsonConvert.DeserializeObject<RootObject>( response.Content );
-	    Text.text = deserializeObject.weather[0].description;
+	    FetchWeatherData();
 	}
+
+    private void FetchWeatherData()
+    {
+        _lastFetch = DateTime.Now;
+        var request = _client.CreateRequest( "weather", Method.GET );
+        request.AddParameter( "lat", Latitude )
+               .AddParameter( "lon", Longitude );
+        var response = _client.Get<object>( request );
+        RootObject deserializeObject = JsonConvert.DeserializeObject<RootObject>( response.Content );
+        WeatherSystem.StartRain();
+    }
 }
 
 public static class RestClientExtensions
@@ -70,8 +79,8 @@ namespace Data
 {
     public class Coord
     {
-        public int lon { get; set; }
-        public int lat { get; set; }
+        public double lon { get; set; }
+        public double lat { get; set; }
     }
 
     public class Weather
@@ -127,4 +136,43 @@ namespace Data
         public int cod { get; set; }
     }
 
+}
+
+namespace WeatherControl
+{
+    public abstract class GeolocationProvider : UnityEngine.Object
+    {
+        public abstract Geolocation GetLocation();
+    }
+
+    internal class DefaultGeolocationProvider : GeolocationProvider
+    {
+        public override Geolocation GetLocation()
+        {
+            return new Geolocation
+            {
+                Latitude = 0.0,
+                Longitude = 0.0
+            };
+        }
+    }
+
+    public class Geolocation
+    {
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+    }
+
+    public abstract class WeatherSystem : MonoBehaviour, IWeatherSystem
+    {
+        public abstract void UpdateWeather(string t);
+
+        public abstract void StartRain();
+    }
+
+    public interface IWeatherSystem
+    {
+        void UpdateWeather(string t);
+        void StartRain();
+    }
 }
