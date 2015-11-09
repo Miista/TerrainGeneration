@@ -6,7 +6,10 @@ using Newtonsoft.Json;
 using RestSharp;
 using UnityEngine;
 
-public class WeatherController : MonoBehaviour {
+public class WeatherController : MonoBehaviour
+{
+    public TextMesh Text;
+
 //    private readonly string Base = "http://api.openweathermap.org/data/2.5/weather?lat=0&lon=0&APPID=7472543b52ecdbc0d9c848fd2a3364ed&units=metric
 
     private readonly IDictionary<string, string> _defaultParameters = new Dictionary<string, string>
@@ -14,12 +17,12 @@ public class WeatherController : MonoBehaviour {
         { "APPID", "7472543b52ecdbc0d9c848fd2a3364ed" }
     };
 
-    private DateTime lastFetch = DateTime.Now;
+    private DateTime _lastFetch = DateTime.Now;
     private readonly RestClient _client;
 
     private bool ShouldFetch
     {
-        get { return ( DateTime.Now - lastFetch ).Seconds > 5; }
+        get { return ( DateTime.Now - _lastFetch ).Seconds > 5; }
     }
 
     public WeatherController()
@@ -36,15 +39,17 @@ public class WeatherController : MonoBehaviour {
     // Update is called once per frame
 	void Update ()
 	{
-	    if ( ShouldFetch )
+	    if ( !ShouldFetch )
 	    {
-	        lastFetch = DateTime.Now;
-	        var request = _client.CreateRequest( "weather", Method.GET );
-	        request.AddParameter( "lat", 0 )
-	               .AddParameter( "lon", 0 );
-	        var response = _client.Get<object>( request );
-	        RootObject deserializeObject = JsonConvert.DeserializeObject<RootObject>( response.Content );
+	        return;
 	    }
+	    _lastFetch = DateTime.Now;
+	    var request = _client.CreateRequest( "weather", Method.GET );
+	    request.AddParameter( "lat", 0 )
+	           .AddParameter( "lon", 0 );
+	    var response = _client.Get<object>( request );
+	    RootObject deserializeObject = JsonConvert.DeserializeObject<RootObject>( response.Content );
+	    Text.text = deserializeObject.weather[0].description;
 	}
 }
 
