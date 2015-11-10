@@ -59,7 +59,7 @@ public class InitScript : MonoBehaviour
     }
 }
 
-public class DirectionalSensor : Sensor
+class DirectionalSensor : Sensor
 {
     private static readonly Material InRange = new Material( Shader.Find( "Diffuse" ) ) { color = Color.red };
 
@@ -93,7 +93,7 @@ public class DirectionalSensor : Sensor
     }
 }
 
-public class NonDirectionalSensor : Sensor
+class NonDirectionalSensor : Sensor
 {
     private static readonly Material CanOnlyHear = new Material(Shader.Find("Diffuse")) { color = Color.yellow };
 
@@ -129,7 +129,7 @@ public class NonDirectionalSensor : Sensor
 
 public class Sensor : MonoBehaviour
 {
-    private static readonly Type AnimalType = typeof(InitScript);
+    private static readonly Type AnimalType = typeof(Animal);
 
     protected Vision Eyes
     {
