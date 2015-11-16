@@ -189,8 +189,8 @@ public class Mind : MonoBehaviour
         }
     }
 
-    private HashSet<Collider> InHearingDistance { get; }
-    private HashSet<Collider> InViewingDistance { get; }
+    private HashSet<Collider> InHearingDistance { get; set; }
+    private HashSet<Collider> InViewingDistance { get; set; }
 
     private static readonly Material CanOnlyHear = new Material( Shader.Find( "Diffuse" ) )
     {

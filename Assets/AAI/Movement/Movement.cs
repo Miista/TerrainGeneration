@@ -60,19 +60,24 @@ public class Movement : Pathfinding
     {
         //generate
         //Set Random Direction
-        var newVector = Random.insideUnitCircle;
+        Vector2 newVector = Random.insideUnitCircle;
 
-        var newVector3 = new Vector3 {x = newVector.x, y = transform.position.y + 5, z = newVector.y};
+//        Vector2 newVector3 = new Vector2 {x = newVector.x, y = newVector.y};
 
         //Set Length of Vector
-        newVector3 = newVector3*DistanceToWander;
+        newVector = newVector*DistanceToWander;
 
         //Set Position to Move to relative to Current Position
-        newVector = transform.position + newVector3;
+        Vector3 vector = transform.position + new Vector3
+                                                {
+                                                    x = newVector.x,
+                                                    y = 5000f,
+                                                    z = newVector.y
+                                                };
 
         //check vector is within MIN/MAX
 
-        updateTarget(newVector3);
+        updateTarget(vector);
     }
 
     public bool TakeMoveStep()
