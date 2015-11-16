@@ -1,10 +1,4 @@
-﻿using System;
-using UnityEngine;
-
-public class Coll : Collider
-{
-
-}
+﻿using UnityEngine;
 
 public class ColliderTests : MonoBehaviour
 {

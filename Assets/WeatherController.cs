@@ -56,7 +56,7 @@ namespace WeatherControl.Core
             request.JsonSerializer = new RestSharpJsonNetSerializer();
             var response = _client.Get<RootObject>(request);
             print( response.Content );
-//            WeatherSystem.StartRain();
+            WeatherSystem.StartRain();
         }
     }
 
