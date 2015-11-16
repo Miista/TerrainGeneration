@@ -21,10 +21,24 @@ public class InitScript : MonoBehaviour
     public Vision Eyes;
     public AudioSense Ears;
 
+    private Mind _mind;
+
     void Start()
     {
+        _mind = CreateMind();
         AddEyes();
         AddEars();
+    }
+
+    private Mind CreateMind()
+    {
+        var container = new GameObject( "Mind" );
+        container.transform.parent = gameObject.transform;
+
+        // Place the game object at the same position and rotation as the animal
+        container.transform.position = gameObject.transform.position;
+        container.transform.rotation = gameObject.transform.rotation;
+        return (Mind)container.AddComponent( typeof(Mind) );
     }
 
     private void AddEars()
@@ -39,13 +53,13 @@ public class InitScript : MonoBehaviour
 
     private GameObject CreateContainer(string objectName)
     {
-        var ears = new GameObject( objectName );
-        ears.transform.parent = gameObject.transform;
+        var container = new GameObject( objectName );
+        container.transform.parent = _mind.gameObject.transform;
 
         // Place the game object at the same position and rotation as the animal
-        ears.transform.position = gameObject.transform.position;
-        ears.transform.rotation = gameObject.transform.rotation;
-        return ears;
+        container.transform.position = _mind.transform.position;
+        container.transform.rotation = _mind.transform.rotation;
+        return container;
     }
 
     private void AddEyes()
@@ -61,10 +75,6 @@ public class InitScript : MonoBehaviour
 
 class DirectionalSensor : Sensor
 {
-    private static readonly Material InRange = new Material( Shader.Find( "Diffuse" ) ) { color = Color.red };
-
-    private static readonly Material CanSee = new Material( Shader.Find( "Diffuse" ) ) { color = Color.black };
-
     public void OnTriggerStay(Collider other)
     {
         if (!IsAnimalAi(other))
@@ -74,36 +84,24 @@ class DirectionalSensor : Sensor
 
         var direction = other.transform.position - gameObject.transform.position;
         var angle = Vector3.Angle(direction, transform.forward);
-        if ( angle < 0.5 * Eyes.FieldOfViewAngle )
+        if ( angle < 0.5 * EyeSettings.FieldOfViewAngle )
         {
             RaycastHit ray;
             if ( Physics.Raycast( transform.position, direction, out ray ) )
             {
                 if ( ray.collider == other )
                 {
-                    other.GetComponent<Renderer>()
-                         .material = CanSee;
-                    Eyes.InRange.Add( other.GetInstanceID() );
+                    InnerMind.ReportSightOf( other );
                     return;
                 }
             }
         }
-        other.GetComponent<Renderer>().material = InRange;
-        Eyes.InRange.Remove( other.GetInstanceID() );
+        InnerMind.LostSightOf( other );
     }
 }
 
 class NonDirectionalSensor : Sensor
 {
-    private static readonly Material CanOnlyHear = new Material(Shader.Find("Diffuse")) { color = Color.yellow };
-
-    private static readonly Material InRange = new Material(Shader.Find("Diffuse")) { color = Color.red };
-
-    private static readonly Material CanSeeAndHear = new Material( Shader.Find( "Diffuse" ) )
-    {
-        color = Color.green
-    };
-
     public void OnTriggerStay(Collider other)
     {
         if ( !IsAnimalAi( other ) )
@@ -115,21 +113,61 @@ class NonDirectionalSensor : Sensor
         var angle = Vector3.Angle(direction, transform.forward);
         if (angle < 180)
         {
-            other.GetComponent<Renderer>()
-                 .material = Eyes.InRange.Contains(other.GetInstanceID()) 
-                                ? CanSeeAndHear 
-                                : CanOnlyHear;
+            InnerMind.ReportSoundOf( other );
         }
         else
         {
-            other.GetComponent<Renderer>().material = InRange;
+            InnerMind.ReportSoundMissing( other );
         }
     }
 }
 
 public class Sensor : MonoBehaviour
 {
+    internal Mind InnerMind
+    {
+        get
+        {
+            // ReSharper disable once ConvertPropertyToExpressionBody
+            return gameObject.GetComponentInParent<Mind>();
+        }
+    }
+
     private static readonly Type AnimalType = typeof(Animal);
+
+    protected Vision EyeSettings
+    {
+        get
+        {
+            // ReSharper disable once ConvertPropertyToExpressionBody
+            return gameObject.GetComponentInParent<InitScript>()
+                             .Eyes;
+        }
+    }
+
+    protected AudioSense EarSettings
+    {
+        get
+        {
+            // ReSharper disable once ConvertPropertyToExpressionBody
+            return gameObject.GetComponentInParent<InitScript>()
+                             .Ears;
+        }
+    }
+
+    protected bool IsAnimalAi(Collider other)
+    {
+        return other.gameObject.GetComponent( AnimalType ) != null;
+    }
+}
+
+public class Mind : MonoBehaviour
+{
+    public Mind()
+    {
+        InHearingDistance = new HashSet<Collider>();
+        InViewingDistance = new HashSet<Collider>();
+    }
 
     protected Vision Eyes
     {
@@ -151,8 +189,62 @@ public class Sensor : MonoBehaviour
         }
     }
 
-    protected bool IsAnimalAi(Collider other)
+    private HashSet<Collider> InHearingDistance { get; }
+    private HashSet<Collider> InViewingDistance { get; }
+
+    private static readonly Material CanOnlyHear = new Material( Shader.Find( "Diffuse" ) )
     {
-        return other.gameObject.GetComponent( AnimalType ) != null;
+        color = Color.yellow
+    };
+
+    private static readonly Material InRange = new Material( Shader.Find( "Diffuse" ) )
+    {
+        color = Color.red
+    };
+
+    private static readonly Material CanSeeAndHear = new Material( Shader.Find( "Diffuse" ) )
+    {
+        color = Color.green
+    };
+
+    public void ReportSoundOf(Collider other)
+    {
+        InHearingDistance.Add( other );
+        other.GetComponent<Renderer>()
+             .material = InViewingDistance.Contains( other )
+                 ? CanSeeAndHear
+                 : CanOnlyHear;
+    }
+
+    private static readonly Material CanSee = new Material( Shader.Find( "Diffuse" ) )
+    {
+        color = Color.black
+    };
+
+    public void ReportSightOf(Collider other)
+    {
+        InViewingDistance.Add( other );
+        other.GetComponent<Renderer>()
+             .material = InHearingDistance.Contains( other )
+                 ? CanSeeAndHear
+                 : CanSee;
+    }
+
+    internal void LostSightOf(Collider other)
+    {
+        if ( InViewingDistance.Remove( other ) )
+        {
+            other.GetComponent<Renderer>()
+                 .material = new Material( Shader.Find( "Diffuse" ) )
+                 {
+                     color = Color.white
+                 };
+        }
+    }
+
+    public void ReportSoundMissing(Collider other)
+    {
+        InHearingDistance.Remove( other );
     }
 }
+
