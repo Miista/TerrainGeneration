@@ -1,7 +1,7 @@
 ﻿using System;
-using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 public class TerrainGenerationController : MonoBehaviour
 {
@@ -22,34 +22,70 @@ public class TerrainGenerationController : MonoBehaviour
     /// </summary>
     public GameObject Player;
 
+    /// <summary>
+    ///     In instance of <see cref="ITerrainProvider"/>.
+    /// </summary>
     public ITerrainProvider TerrainProvider;
 
-    private double _threshold
-    {
-        get { return _cellSize.x * (Threshold * 0.01); }
-    }
+    /// <summary>
+    ///     The actual threshold in points/pixels(?) that the player needs to move into a new cell to trigger generation of new
+    ///     terrain.
+    ///     This is defined as:
+    ///     <code>
+    ///         [threshold in percentage] * 0,01 * [size of cell]
+    ///     </code>
+    /// </summary>
+    /// <remarks>
+    ///     Invariant: This value should never change between calls.
+    /// </remarks>
+    private double _threshold;
 
     private readonly Dictionary<Vector3, GameObject> _grid = new Dictionary<Vector3, GameObject>();
 
-    private double BoundaryX
-    {
-        get
-        {
-            return _cellSize.x / 2 + _threshold;
-        }
-    }
+    /// <summary>
+    ///     This is defined as:
+    ///     <code>
+    ///         ([width of cell] / 2) + _threshold
+    ///     </code>
+    /// </summary>
+    /// <remarks>
+    ///     Invariant: This value should never change between calls.
+    /// </remarks>
+    private double _boundaryX;
 
-    private double BoundaryY
-    {
-        get
-        {
-            return _cellSize.z / 2 + _threshold;
-        }
-    }
+    /// <summary>
+    ///     This is defined as:
+    ///     <code>
+    ///         ([height of cell] / 2) + _threshold
+    ///     </code>
+    /// </summary>
+    /// <remarks>
+    ///     Invariant: This value should never change between calls.
+    /// </remarks>
+    private double _boundaryY;
 
+    /// <summary>
+    ///     The center point of the current cell in which the player is.
+    ///     Whenever the player crosses the <see cref="_threshold"/> into a new cell this value is updated.
+    /// </summary>
     private Vector3 _spawnPoint;
 
+    /// <summary>
+    ///     The size of one cell in the 3x3 grid.
+    ///     Both the width and the height of a cell is defined as:
+    ///     <code>
+    ///         [size of grid] / 3
+    ///     </code>
+    /// </summary>
+    /// <remarks>
+    ///     Invariant: This value should never change between calls.
+    /// </remarks>
     private Vector3 _cellSize;
+
+    /// <summary>
+    ///     The specific implementation of IEqualityComparer we need for comparing two <see cref="Vector3" />.
+    /// </summary>
+    private readonly Comparer _vectorComparer = new Comparer();
 
     // Use this for initialization
 	void Start ()
@@ -68,6 +104,9 @@ public class TerrainGenerationController : MonoBehaviour
             y = 1,
 	        z = Size / 3
 	    };
+        _threshold = _cellSize.x * (Threshold * 0.01);
+        _boundaryX = _cellSize.x / 2 + _threshold;
+        _boundaryY = _cellSize.z / 2 + _threshold;
         GenerateFromSpawnPoint();
 	}
 
@@ -148,7 +187,6 @@ public class TerrainGenerationController : MonoBehaviour
 	            break;
 	    }
         GenerateFromSpawnPoint();
-//	    print( string.Format( "({0},{1},{2})", _spawnPoint.x, _spawnPoint.y, _spawnPoint.z ) );
 	}
 
     private Direction GetDirection()
@@ -159,9 +197,9 @@ public class TerrainGenerationController : MonoBehaviour
             z = Player.transform.position.z - _spawnPoint.z
         };
 
-        if ( Math.Abs( delta.x ) > BoundaryX )
+        if ( Math.Abs( delta.x ) > _boundaryX )
         {
-            if ( Math.Abs( delta.z ) > BoundaryY )
+            if ( Math.Abs( delta.z ) > _boundaryY )
             {
                 if (delta.x > 0)
                 {
@@ -183,7 +221,7 @@ public class TerrainGenerationController : MonoBehaviour
                     : Direction.West;
             }
         }
-        else if ( Math.Abs( delta.z ) > BoundaryY )
+        else if ( Math.Abs( delta.z ) > _boundaryY )
         {
             return delta.z > 0 
                 ? Direction.North 
@@ -206,13 +244,17 @@ public class TerrainGenerationController : MonoBehaviour
         SouthEast = 8,
     }
 
+    /// <summary>
+    ///     Invariant (post): |cells| = 9
+    /// </summary>
     private void GenerateFromSpawnPoint()
     {
+        RemoveObsoleteCells();
+
         var zOffset = _spawnPoint.z - _cellSize.z;
         var xOffset = _spawnPoint.x - _cellSize.x;
         for (var row = 0; row < 3; row++)
         {
-
             for (var column = 0; column < 3; column++)
             {
                 var spawnPoint = new Vector3
@@ -221,17 +263,19 @@ public class TerrainGenerationController : MonoBehaviour
                     y = 0,
                     z = zOffset + ( row * _cellSize.z )
                 };
-                if ( _grid.ContainsKey( spawnPoint ) )
+
+                /* We can't just call _grid.ContainsKey(), because we need 
+                 * to use a special implementation of IEqualityComparer.
+                 * See Comparer.
+                 */
+                if ( _grid.Keys.Contains( spawnPoint, _vectorComparer ) )
                 {
                     continue;
                 }
                 var primitive = TerrainProvider.CreateTerrain( _cellSize, spawnPoint );
                 _grid[spawnPoint] = primitive;
             }
-
         }
-
-        RemoveObsoleteCells();
     }
 
     /// <summary>
@@ -254,7 +298,10 @@ public class TerrainGenerationController : MonoBehaviour
         var obsoleteCells = e1.Union( e2 )
                               .Union( e3 )
                               .Union( e4 );
-        foreach (var v in obsoleteCells.ToList())
+
+
+        var list = obsoleteCells.ToList();
+        foreach (var v in list)
         {
             Destroy( _grid[v] );
             _grid.Remove( v );
@@ -271,7 +318,7 @@ class ColorProvider : ITerrainProvider
 {
     private List<Color> colors = new List<Color>
     {
-        Color.black,
+        Color.green,
         Color.cyan,
         Color.blue,
         Color.magenta,
@@ -279,10 +326,10 @@ class ColorProvider : ITerrainProvider
         Color.yellow,
         Color.green,
         Color.white,
-        Color.clear
+        Color.white
     };
 
-    private int n = 0;
+    private int n;
 
     public GameObject CreateTerrain(Vector3 cellSize, Vector3 center)
     {
@@ -298,3 +345,17 @@ class ColorProvider : ITerrainProvider
         return primitive;
     }
 }
+
+public class Comparer : IEqualityComparer<Vector3>
+{
+    public bool Equals(Vector3 x, Vector3 y)
+    {
+        return Mathf.Approximately( x.x, y.x ) && Mathf.Approximately( x.z, y.z );
+    }
+
+    public int GetHashCode(Vector3 obj)
+    {
+        throw new NotImplementedException();
+    }
+}
+
