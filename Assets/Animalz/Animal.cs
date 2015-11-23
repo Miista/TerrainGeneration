@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Assets.Animalz
@@ -9,12 +10,13 @@ namespace Assets.Animalz
         public AudiatorySense Ears;
         public VisionSense Eyes;
         public SmellySense Nose;
+        internal Movement _movement;
 
         internal ConcreteMind Mind { get; set; }
         int Size { get; set; }
         AnimalType Type { get; set; }
 
-        public void Init(MindPrototype prototype)
+        public void Awake()
         {
             Mind = gameObject.AddComponent<ConcreteMind>();
             Mind.MyAnimal = this;
@@ -24,7 +26,6 @@ namespace Assets.Animalz
             vision.AddComponent<Rigidbody>()
                   .isKinematic = true;
             Eyes = vision.AddComponent<VisionSense>();
-            Eyes.CreatedFrom = prototype.Eyes;
             Eyes.Collider = visionCollider;
             Eyes.Mind = Mind;
             visionCollider.isTrigger = true;
@@ -35,7 +36,6 @@ namespace Assets.Animalz
             audio.AddComponent<Rigidbody>()
                  .isKinematic = true;
             Ears = audio.AddComponent<AudiatorySense>();
-            Ears.CreatedFrom = prototype.Ears;
             Ears.Collider = audioCollider;
             Ears.Mind = Mind;
             audioCollider.isTrigger = true;
@@ -43,8 +43,15 @@ namespace Assets.Animalz
 
             GameObject smell = CreateContainer("SmellyTest");
             Nose = smell.AddComponent<SmellySense>();
-            Nose.CreatedFrom = prototype.Nose;
 
+            _movement = this.gameObject.AddComponent<Movement>();
+        }
+
+        public void Init(MindPrototype prototype)
+        {
+            Eyes.CreatedFrom = prototype.Eyes;
+            Ears.CreatedFrom = prototype.Ears;
+            Nose.CreatedFrom = prototype.Nose;
         }
 
         private GameObject CreateContainer(string objectName)
@@ -83,7 +90,18 @@ namespace Assets.Animalz
         internal Animal MyAnimal;
 
         public void Update()
-        { }
+        {
+            if ( !MyAnimal._movement.TakeMoveStep() )
+            {
+                Collider animal = MyAnimal.Eyes.Detected.FirstOrDefault();
+                if (animal != null)
+                {
+                    print( "SHOULD MOVE!!!!!" );
+                    Vector3 positionOfOther = animal.transform.position;
+                    MyAnimal._movement.updateTarget( positionOfOther );
+                }
+            }
+        }
 
         public void ReportDetectOf(Sense origin, Collider other)
         {
@@ -116,7 +134,7 @@ namespace Assets.Animalz
 
     internal class AudiatorySense : Sense
     {
-        internal AudioPref CreatedFrom { get; set; }
+        internal AudioPref CreatedFrom = new AudioPref();
 
         public float Range
         {
@@ -132,7 +150,25 @@ namespace Assets.Animalz
             }
         }
 
-        public void OnTriggerStay(Collider other)
+        public void OnTriggerExit(Collider other)
+        {
+            if (!IsAnimalAi(other))
+            {
+                return;
+            }
+
+            if (IsSelf(other))
+            {
+                return;
+            }
+
+            if (Detected.Contains(other))
+            {
+                ReportUndetection(other);
+            }
+        }
+
+        public void OnTriggerEnter(Collider other)
         {
             if (!IsAnimalAi(other))
             {
@@ -150,11 +186,31 @@ namespace Assets.Animalz
             {
                 ReportDetection(other);
             }
-            else
-            {
-                ReportUndetection(other);
-            }
         }
+
+        //        public void OnTriggerStay(Collider other)
+        //        {
+        //            if (!IsAnimalAi(other))
+        //            {
+        //                return;
+        //            }
+        //
+        //            if (IsSelf(other))
+        //            {
+        //                return;
+        //            }
+        //
+        //            var direction = other.transform.position - gameObject.transform.position;
+        //            var angle = Vector3.Angle(direction, transform.forward);
+        //            if (angle < 180)
+        //            {
+        //                ReportDetection(other);
+        //            }
+        //            else
+        //            {
+        //                ReportUndetection(other);
+        //            }
+        //        }
     }
 
     internal class Sense : MonoBehaviour
@@ -193,7 +249,7 @@ namespace Assets.Animalz
 
     internal class VisionSense : Sense
     {
-        internal VisionPref CreatedFrom { get; set; }
+        internal VisionPref CreatedFrom = new VisionPref();
 
         public float FieldOfView
         {
@@ -297,6 +353,6 @@ namespace Assets.Animalz
 
     internal class SmellySense : Sense
     {
-        internal SmellyPref CreatedFrom { get; set; }
+        internal SmellyPref CreatedFrom = new SmellyPref();
     }
 }

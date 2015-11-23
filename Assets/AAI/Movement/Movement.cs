@@ -14,6 +14,7 @@ public class Movement : Pathfinding
     internal void updateTarget(Vector3 target)
     {
         sourcePosition = transform.position;
+        sourcePosition += new Vector3(0, 100f, 0);
         targetPosition = target;
         FindPath(sourcePosition, targetPosition);
     }
@@ -101,10 +102,10 @@ public class Movement : Pathfinding
         {
             //do some sensing - maybe update the movement type to recompute path to flee, chase or wander
         }
-        else
-        {
-                Wander();
-        }
+//        else
+//        {
+//                Wander();
+//        }
     }
 
 }

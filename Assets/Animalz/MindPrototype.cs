@@ -12,7 +12,8 @@ namespace Assets.Animalz
         void Start()
         {
             Animal animal = gameObject.AddComponent<Animal>();
-            animal.Mind = CreateMind();
+            // Awake
+//            animal.Mind = CreateMind();
             animal.Init( this );
         }
 
