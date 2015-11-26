@@ -10,15 +10,14 @@ namespace Assets.Animalz
         public AudiatorySense Ears;
         public VisionSense Eyes;
         public SmellySense Nose;
-        internal Movement _movement;
 
         internal ConcreteMind Mind { get; set; }
-        int Size { get; set; }
-        AnimalType Type { get; set; }
+        public int Rank = 0;
+        public AnimalType Type = AnimalType.Predator;
 
         public void Awake()
         {
-            Mind = gameObject.AddComponent<ConcreteMind>();
+            Mind = gameObject.AddComponent<BeastMind>();
             Mind.MyAnimal = this;
 
             GameObject vision = CreateContainer("VisionTest");
@@ -44,11 +43,13 @@ namespace Assets.Animalz
             GameObject smell = CreateContainer("SmellyTest");
             Nose = smell.AddComponent<SmellySense>();
 
-            _movement = this.gameObject.AddComponent<Movement>();
+        //    _movement = this.gameObject.AddComponent<Movement>();
         }
 
         public void Init(MindPrototype prototype)
         {
+            this.Rank = prototype.Animal.Rank;
+
             Eyes.CreatedFrom = prototype.Eyes;
             Ears.CreatedFrom = prototype.Ears;
             Nose.CreatedFrom = prototype.Nose;
@@ -66,7 +67,7 @@ namespace Assets.Animalz
         }
     }
 
-    enum AnimalType
+    public enum AnimalType
     {
         Predator,
         Prey
@@ -79,7 +80,7 @@ namespace Assets.Animalz
         SmellySense Nose { get; }
     }
 
-    internal class ConcreteMind : MonoBehaviour
+    public class ConcreteMind : MonoBehaviour
     {
         private static readonly Material CanSeeAndHear = new Material(Shader.Find("Diffuse")) { color = Color.green };
 
@@ -89,21 +90,21 @@ namespace Assets.Animalz
 
         internal Animal MyAnimal;
 
-        public void Update()
+        public virtual void Update()
         {
-            if ( !MyAnimal._movement.TakeMoveStep() )
-            {
-                Collider animal = MyAnimal.Eyes.Detected.FirstOrDefault();
-                if (animal != null)
-                {
-                    print( "SHOULD MOVE!!!!!" );
-                    Vector3 positionOfOther = animal.transform.position;
-                    MyAnimal._movement.updateTarget( positionOfOther );
-                }
-            }
+            //if ( !MyAnimal._movement.TakeMoveStep() )
+            //{
+            //    Collider animal = MyAnimal.Eyes.Detected.FirstOrDefault();
+            //    if (animal != null)
+            //    {
+            //        print( "SHOULD MOVE!!!!!" );
+            //        Vector3 positionOfOther = animal.transform.position;
+            //        MyAnimal._movement.updateTarget( positionOfOther );
+            //    }
+            //}
         }
 
-        public void ReportDetectOf(Sense origin, Collider other)
+        internal virtual void ReportDetectOf(Sense origin, Collider other)
         {
             Material m = null;
             if (origin is VisionSense)
@@ -122,7 +123,7 @@ namespace Assets.Animalz
                  .material = m;
         }
 
-        internal void ReportUndectOf(Sense origin, Collider other)
+        internal virtual void ReportUndectOf(Sense origin, Collider other)
         {
             other.GetComponent<Renderer>()
                     .material = new Material(Shader.Find("Diffuse"))
@@ -180,12 +181,7 @@ namespace Assets.Animalz
                 return;
             }
 
-            var direction = other.transform.position - gameObject.transform.position;
-            var angle = Vector3.Angle(direction, transform.forward);
-            if (angle < 180)
-            {
                 ReportDetection(other);
-            }
         }
 
         //        public void OnTriggerStay(Collider other)
@@ -213,7 +209,7 @@ namespace Assets.Animalz
         //        }
     }
 
-    internal class Sense : MonoBehaviour
+    public class Sense : MonoBehaviour
     {
         private static readonly Type AnimalType = typeof(Animal);
 

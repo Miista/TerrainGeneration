@@ -8,6 +8,7 @@ namespace Assets.Animalz
         public VisionPref Eyes;
         public AudioPref Ears;
         public SmellyPref Nose;
+        public AnimalPref Animal;
 
         void Start()
         {
@@ -78,5 +79,11 @@ namespace Assets.Animalz
     {
         public float Range;
         public float FieldOfView;
+    }
+
+    [Serializable]
+    public class AnimalPref
+    {
+        public int Rank = 0, MoveSpeed = 1, RunSpeed = 2;
     }
 }
