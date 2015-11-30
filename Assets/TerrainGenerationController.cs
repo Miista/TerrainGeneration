@@ -8,7 +8,7 @@ public class TerrainGenerationController : MonoBehaviour
     /// <summary>
     ///     The single dimension that makes of the quadratic map that will be generated.
     /// </summary>
-    public float Size;
+    public float Size = 75;
 
     /// <summary>
     ///     A percentage indicating how far the player has to cross into
@@ -25,7 +25,7 @@ public class TerrainGenerationController : MonoBehaviour
     /// <summary>
     ///     In instance of <see cref="ITerrainProvider"/>.
     /// </summary>
-    public ITerrainProvider TerrainProvider;
+    public HeightmapProvider TerrainProvider;
 
     /// <summary>
     ///     The actual threshold in points/pixels(?) that the player needs to move into a new cell to trigger generation of new
@@ -87,107 +87,116 @@ public class TerrainGenerationController : MonoBehaviour
     /// </summary>
     private readonly Comparer _vectorComparer = new Comparer();
 
+    private MapHandler _mapHandler;
+
+    void Awake(){
+        _mapHandler = Player.GetComponent<MapHandler>();
+    }
+
     // Use this for initialization
-	void Start ()
-	{
-        TerrainProvider = new ColorProvider();
-	    _spawnPoint = new Vector3
-	    {
-	        x = Size / 2,
-	        y = Player.transform.position.y,
-	        z = Size / 2
-	    };
-	    Player.transform.position = _spawnPoint;
-	    _cellSize = new Vector3
-	    {
-	        x = Size / 3,
-            y = 1,
-	        z = Size / 3
-	    };
+    void Start ()
+    {
+        //TerrainProvider = new ColorProvider();
+        _spawnPoint = new Vector3
+        {
+            x = Size / 2,
+            y = Player.transform.position.y,
+            z = Size / 2
+        };
+        Player.transform.position = _spawnPoint;
+        _cellSize = new Vector3
+        {
+            x = Size / 3,
+            y = Size / 3,
+            z = Size / 3
+        };
         _threshold = _cellSize.x * (Threshold * 0.01);
         _boundaryX = _cellSize.x / 2 + _threshold;
         _boundaryY = _cellSize.z / 2 + _threshold;
+        
+        TerrainProvider.PrefetchAroundPoint(_cellSize, _spawnPoint);
         GenerateFromSpawnPoint();
-	}
+    }
 
     // Update is called once per frame
-	void Update ()
-	{
-	    var direction = GetDirection();
-	    switch (direction)
-	    {
+    void Update ()
+    {
+        var direction = GetDirection();
+        switch (direction)
+        {
             case Direction.None:
-	            return;
-	        case Direction.NorthEast:
-	            _spawnPoint = new Vector3
-	            {
-	                x = _spawnPoint.x + _cellSize.x,
-	                y = _spawnPoint.y,
-	                z = _spawnPoint.z + _cellSize.z
-	            };
-	            break;
-	        case Direction.NorthWest:
-	            _spawnPoint = new Vector3
-	            {
-	                x = _spawnPoint.x - _cellSize.x,
-	                y = _spawnPoint.y,
-	                z = _spawnPoint.z + _cellSize.z
-	            };
-	            break;
-	        case Direction.SouthEast:
-	            _spawnPoint = new Vector3
-	            {
-	                x = _spawnPoint.x + _cellSize.x,
-	                y = _spawnPoint.y,
-	                z = _spawnPoint.z - _cellSize.z
-	            };
-	            break;
-	        case Direction.SouthWest:
-	            _spawnPoint = new Vector3
-	            {
-	                x = _spawnPoint.x - _cellSize.x,
-	                y = _spawnPoint.y,
-	                z = _spawnPoint.z - _cellSize.z
-	            };
-	            break;
-	        case Direction.North:
-	            _spawnPoint = new Vector3
-	            {
-	                x = _spawnPoint.x,
-	                y = _spawnPoint.y,
-	                z = _spawnPoint.z + _cellSize.z
-	            };
-	            break;
-	        case Direction.East:
-	            _spawnPoint = new Vector3
-	            {
-	                x = _spawnPoint.x + _cellSize.x,
-	                y = _spawnPoint.y,
-	                z = _spawnPoint.z
-	            };
-	            break;
-	        case Direction.South:
-	            _spawnPoint = new Vector3
-	            {
-	                x = _spawnPoint.x,
-	                y = _spawnPoint.y,
-	                z = _spawnPoint.z - _cellSize.z
-	            };
-	            break;
-	        case Direction.West:
-	            _spawnPoint = new Vector3
-	            {
-	                x = _spawnPoint.x - _cellSize.x,
-	                y = _spawnPoint.y,
-	                z = _spawnPoint.z
-	            };
-	            break;
-	        default:
-	            print( "Do the mambo dance!!" );
-	            break;
-	    }
+                return;
+            case Direction.NorthEast:
+                _spawnPoint = new Vector3
+                {
+                    x = _spawnPoint.x + _cellSize.x,
+                    y = _spawnPoint.y,
+                    z = _spawnPoint.z + _cellSize.z
+                };
+                break;
+            case Direction.NorthWest:
+                _spawnPoint = new Vector3
+                {
+                    x = _spawnPoint.x - _cellSize.x,
+                    y = _spawnPoint.y,
+                    z = _spawnPoint.z + _cellSize.z
+                };
+                break;
+            case Direction.SouthEast:
+                _spawnPoint = new Vector3
+                {
+                    x = _spawnPoint.x + _cellSize.x,
+                    y = _spawnPoint.y,
+                    z = _spawnPoint.z - _cellSize.z
+                };
+                break;
+            case Direction.SouthWest:
+                _spawnPoint = new Vector3
+                {
+                    x = _spawnPoint.x - _cellSize.x,
+                    y = _spawnPoint.y,
+                    z = _spawnPoint.z - _cellSize.z
+                };
+                break;
+            case Direction.North:
+                _spawnPoint = new Vector3
+                {
+                    x = _spawnPoint.x,
+                    y = _spawnPoint.y,
+                    z = _spawnPoint.z + _cellSize.z
+                };
+                break;
+            case Direction.East:
+                _spawnPoint = new Vector3
+                {
+                    x = _spawnPoint.x + _cellSize.x,
+                    y = _spawnPoint.y,
+                    z = _spawnPoint.z
+                };
+                break;
+            case Direction.South:
+                _spawnPoint = new Vector3
+                {
+                    x = _spawnPoint.x,
+                    y = _spawnPoint.y,
+                    z = _spawnPoint.z - _cellSize.z
+                };
+                break;
+            case Direction.West:
+                _spawnPoint = new Vector3
+                {
+                    x = _spawnPoint.x - _cellSize.x,
+                    y = _spawnPoint.y,
+                    z = _spawnPoint.z
+                };
+                break;
+            default:
+                print( "Do the mambo dance!!" );
+                break;
+        }
+
         GenerateFromSpawnPoint();
-	}
+    }
 
     private Direction GetDirection()
     {
@@ -249,6 +258,7 @@ public class TerrainGenerationController : MonoBehaviour
     /// </summary>
     private void GenerateFromSpawnPoint()
     {
+        //_mapHandler.Refresh();
         RemoveObsoleteCells();
 
         var zOffset = _spawnPoint.z - _cellSize.z;
@@ -312,7 +322,9 @@ public class TerrainGenerationController : MonoBehaviour
 public interface ITerrainProvider
 {
     GameObject CreateTerrain(Vector3 cellSize, Vector3 center);
+    void PrefetchAroundPoint(Vector3 cellSize, Vector3 spawnPoint);
 }
+
 
 class ColorProvider : ITerrainProvider
 {
@@ -331,7 +343,7 @@ class ColorProvider : ITerrainProvider
 
     private int n;
 
-    public GameObject CreateTerrain(Vector3 cellSize, Vector3 center)
+    public GameObject CreateTerrain(Vector3 cellSize, Vector3 center )
     {
         var primitive = GameObject.CreatePrimitive(PrimitiveType.Cube);
         primitive.GetComponent<Renderer>()
@@ -343,6 +355,10 @@ class ColorProvider : ITerrainProvider
         primitive.transform.transform.position = center;
         n++;
         return primitive;
+    }
+
+    public void PrefetchAroundPoint (Vector3 cellSize, Vector3 spawnPoint){
+        throw new NotImplementedException();
     }
 }
 

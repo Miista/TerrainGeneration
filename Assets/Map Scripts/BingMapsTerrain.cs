@@ -3,19 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-
-[System.Serializable]
-public class BingMapsLocation
-{
-	public string locality = "innsbrueck";
-	public string adminDistrict = "";
-	public string addressLine = "";
-	public string ISOCountryRegion = "";
-	public int zoom = 12;
-	public double latitude;
-	public double longitude;
-}
-
 public class BingMapsTerrain : MonoBehaviour {
 	public enum ImagerySet {
 		Aerial,
@@ -28,6 +15,7 @@ public class BingMapsTerrain : MonoBehaviour {
 	public ImagerySet imSet;
 	public BingMapsLocation centerLocation;
 	public bool heights = true;
+	public bool allowLoad = true;
 	public 	int smoothings = 4; //times I do the smoothing
 	public int neighbors = 6; //neighbors I want to use for smoothing height values
 
@@ -38,7 +26,6 @@ public class BingMapsTerrain : MonoBehaviour {
 	
 	public void Refresh() {
 		StartCoroutine(_Refresh());
-		//TestRefresh();
 	}
 	
 	IEnumerator _Refresh (){
@@ -92,10 +79,20 @@ public class BingMapsTerrain : MonoBehaviour {
 		qs2 += "&mapMetadata=1"; //for map metadata
 
 		WWW reqImage = new WWW (url + qs);
-		if (heights == true){
-			WWW reqMeta = new WWW (url + qs2);
-			yield return reqMeta;
-			StartCoroutine(ApplyBingHeightmap (reqMeta, key));
+		if (heights == true ){
+			if (allowLoad && GameControl.control.LoadCurrent() 
+				&& GameControl.control.currentCenter[0] == centerCoord[0]
+				&& GameControl.control.currentCenter[1] == centerCoord[1]
+				&& GameControl.control.currentZoom == centerLocation.zoom) {
+				Debug.Log("heightmap loaded");
+				//GetComponent<Terrain> ().terrainData.SetHeights(0,0, GameControl.control.currentHeightmap);
+				ApplyBingHeightmapToChunks (GameControl.control.currentHeightmap, 9);
+			} 
+			else {
+				WWW reqMeta = new WWW (url + qs2);
+				yield return reqMeta;
+				StartCoroutine(ApplyBingHeightmapV2(reqMeta, key));
+			}
 		}
 
 		yield return reqImage;
@@ -111,7 +108,128 @@ public class BingMapsTerrain : MonoBehaviour {
 		GetComponent<Terrain> ().terrainData.splatPrototypes = splatList.ToArray();
 	}
 
-	IEnumerator ApplyBingHeightmap(WWW metaReq, string key ){
+
+	void ApplyBingHeightmapToChunks( float[,] heightmapData, int chunks ){
+
+		//TerrainData terrain = GetComponent<Terrain> ().terrainData;
+		int width = 512 ;
+
+		GameObject[] terrainGOs = new GameObject[chunks];
+		TerrainData[] tDatas = new TerrainData[chunks];
+		int gridWidth = (int) Mathf.Sqrt(chunks); //let's pretend it is a good value
+		int cellWidth = 25;
+		Vector3 cellSize = new Vector3(cellWidth, cellWidth, cellWidth);
+
+		for(int i = 0; i < chunks; i++){
+			Vector3 position = GetPosition(i+1, cellWidth);
+			Vector3 index = GetIndex(i+1, gridWidth, width * 3);
+			float[,] heightmap = new float[width, width];
+			int m = 0, n = 0;
+			for (int x = (int) index.x ; x < index.x - 1 + index.z ; x++){
+				for (int y = (int) index.y; y < index.y - 1 + index.z ; y++ ){
+					heightmap[m,n] = heightmapData[x,y];
+					n++;
+					//n+= gridWidth;
+				}
+				n = 0;
+				m++;
+				//m+= gridWidth;
+			}
+
+			tDatas[i] = new TerrainData(); 
+			tDatas[i].heightmapResolution = (width+1); // /gridWidth;
+			tDatas[i].size = cellSize;
+			tDatas[i].SetHeights(0, 0, heightmap);
+			Debug.Log(" heightmapSize: " + heightmap.GetLength(0) + " big one is: " + width * 3);
+
+			terrainGOs[i] = Terrain.CreateTerrainGameObject(tDatas[i]);
+			terrainGOs[i].GetComponent<Terrain>().terrainData.size = cellSize;
+
+			terrainGOs[i].transform.position = position;
+			terrainGOs[i].GetComponent<Terrain>().Flush();
+		}
+	}
+
+
+	Vector3 GetIndex(int i, int gridWidth, int width ){
+		if ( width % gridWidth == 0)
+		{
+			//x and y are the offsets in the heightmapData for the required chunk, z is the width in pixels of each chunk
+			Vector3 position = new Vector3(0,0,0);
+			int index = width / gridWidth;
+			switch(i){
+				case 1:
+				position = new Vector3(0,0, index);
+				break;
+				case 4://2
+				position = new Vector3(index,0, index);
+				break;
+				case 7: //3
+				position = new Vector3(2*index,0, index);
+				break;
+				case 2: //4
+				position = new Vector3(0,index, index);
+				break;
+				case 5:
+				position = new Vector3(index,index, index);
+				break;
+				case 8: //6
+				position = new Vector3(2*index,index, index);
+				break;
+				case 3: //7
+				position = new Vector3(0,2*index, index);
+				break;
+				case 6: //8
+				position = new Vector3(index,2*index, index);
+				break;
+				case 9:
+				position = new Vector3(2*index,2*index, index);
+				break;
+			}
+			return position;
+		}
+		else {
+			Debug.Log("Something went wrong: resolution not valid for this number of chunks");
+			Debug.Log(width + "%" + gridWidth + " = " + width%gridWidth);
+			return new Vector3();
+		}
+	}
+
+	Vector3 GetPosition(int i, int cellWidth ){
+		Vector3 position = new Vector3();
+		switch(i){
+			case 1:
+			position = new Vector3(0,0,0);
+			break;
+			case 2:
+			position = new Vector3(cellWidth,0,0);
+			break;
+			case 3:
+			position = new Vector3(2*cellWidth,0,0);
+			break;
+			case 4:
+			position = new Vector3(0,0,cellWidth);
+			break;
+			case 5:
+			position = new Vector3(cellWidth,0,cellWidth);
+			break;
+			case 6:
+			position = new Vector3(2*cellWidth,0,cellWidth);
+			break;
+			case 7:
+			position = new Vector3(0,0,2*cellWidth);
+			break;
+			case 8:
+			position = new Vector3(cellWidth,0,2*cellWidth);
+			break;
+			case 9:
+			position = new Vector3(2*cellWidth,0,2*cellWidth);
+			break;
+		}
+		return position;
+	}
+
+	IEnumerator ApplyBingHeightmapV2(WWW metaReq, string key ){
 
 		MetadataObject metadata = JsonConvert.DeserializeObject<MetadataObject>( metaReq.text );
 		List<double> bbox = metadata.resourceSets[0].resources[0].bbox;
@@ -127,196 +245,127 @@ public class BingMapsTerrain : MonoBehaviour {
 
 		ElevDataObject elevData = JsonConvert.DeserializeObject<ElevDataObject> (elevReq.text);
 		List<int> elevations = elevData.resourceSets[0].resources[0].elevations;  //elevations at sea level in meters
-		float minELev = Mathf.Min(elevations.ToArray());
-		float maxElev = 8848;//Mathf.Max(elevations.ToArray());
+		
+
+		TerrainData terrain = GetComponent<Terrain> ().terrainData;
+		int width = (terrain.heightmapWidth  - 1) * 3 ;
+		float[,] heightmapData = new float[width, width]; //terrain.GetHeights(0, 0, width, width);
+
+		if (width % rows == 0)
+		{	
+			heightmapData = ApplyElevationsToHeightmap (elevations, heightmapData, width);
+			heightmapData = Smooth(heightmapData, smoothings*2, neighbors*2, width);
+
+			float[] coordinates = new float[2];
+			coordinates[0] = float.Parse(metadata.resourceSets[0].resources[0].mapCenter.coordinates[0]);
+			coordinates[1] = float.Parse(metadata.resourceSets[0].resources[0].mapCenter.coordinates[1]);
+			GameControl.control.SetCurrentHeightmapData(heightmapData, centerLocation.zoom, coordinates);
+			GameControl.control.SaveAsCurrent();
+		}
+		else {
+			Debug.Log ("Something went wrong: size of terrain is not processable for heightmap generation");
+		}
+		
+	}
+		IEnumerator ApplyBingHeightmapV1(WWW metaReq, string key ){
+
+		MetadataObject metadata = JsonConvert.DeserializeObject<MetadataObject>( metaReq.text );
+		List<double> bbox = metadata.resourceSets[0].resources[0].bbox;
+
+		string url = "http://dev.virtualearth.net/REST/v1/Elevation/Bounds?bounds=";
+		url += bbox[0] + "," + bbox[1] + "," +  bbox[2] + "," +  bbox[3];
+		int rows = 32;
+		url += "&rows=" + rows + "&cols=" + rows + "&heights=sealevel&key=" + key;
+		//max height point retrievable = 1024 = 32 * 32
+
+		WWW elevReq = new WWW (url);
+		yield return elevReq;
+
+		ElevDataObject elevData = JsonConvert.DeserializeObject<ElevDataObject> (elevReq.text);
+		List<int> elevations = elevData.resourceSets[0].resources[0].elevations;  //elevations at sea level in meters
+		
 
 		TerrainData terrain = GetComponent<Terrain> ().terrainData;
 		int width = terrain.heightmapWidth-1;
 		float[,] heightmapData = terrain.GetHeights(0, 0, width, width);
-		int index = 0;
+		
 
 		if (width % rows == 0)
-		{
-			for (int y = 0; y < width; y+=width/rows) {
-				for (int x = 0; x < width; x+=width/rows) {
-					if (y % (width/rows) == 0 && x % (width/rows) == 0) {
-						index = (y*rows + x )/(width/rows);
-						heightmapData[y, x] = ((elevations[index] - minELev)/(maxElev - minELev)) * terrain.size.y; // normalize meters to terrain height
-						} else {
-						heightmapData[y, x] = minELev; //initialize empty with min elevation
-					}
+		{	
+			heightmapData = ApplyElevationsToHeightmap (elevations, heightmapData, width);
+			heightmapData = Smooth(heightmapData, smoothings, neighbors, width);
 
-				}
-			}
-			float distance = 0;
-			// (x, y) is a peak
-			for (int y=0; y < width; y+=width/rows){
-				for (int x=0; x < width; x+=width/rows){
-					// each peak works on his square [x+n, y+m]
-					for (int n = 0; n < width/rows; n ++){
-						for (int m = 0; m < width/rows; m++){
-							if ((y+m) % (width/rows) != 0 || (x+n) % (width/rows) != 0) {
-								distance = Mathf.Sqrt((m*m) + (n*n));
-								heightmapData[y+m, x+n] = heightmapData[y,x] * (1 - (distance/((Mathf.Sqrt(2) * width/rows))));
-							}
-						}
-					}
-				}
-			}
-
-
-			float sum =0;
-			int count = 0;
-			for (int i=0; i < smoothings; i++){
-				for (int y=0; y < width; y++){
-					for (int x=0; x < width; x++){
-						for (int n = 0; n < neighbors; n++){
-							sum += (y-n <= 0 ? 0 : heightmapData[y-n, x]);
-							sum += (x-n <= 0 ? 0 : heightmapData[y, x-n]);
-							sum += ((x-n<=0 || y-n<=0) ? 0 : heightmapData[y-n, x-n]);
-							count += (y-n <= 0 ? 0 : 1);
-							count += (x-n <= 0 ? 0 : 1);
-							count += ((x-n<=0 || y-n<=0) ? 0 : 1);
-						}
-						heightmapData[y,x] = (heightmapData[y,x] + sum )/ (count+1);
-						sum = 0;
-						count = 0;
-					}
-				}
-			}
-
+			float[] coordinates = new float[2];
+			coordinates[0] = float.Parse(metadata.resourceSets[0].resources[0].mapCenter.coordinates[0]);
+			coordinates[1] = float.Parse(metadata.resourceSets[0].resources[0].mapCenter.coordinates[1]);
+			GameControl.control.SetCurrentHeightmapData(heightmapData, centerLocation.zoom, coordinates);
+			GameControl.control.SaveAsCurrent();
 			terrain.SetHeights(0, 0, heightmapData);
 		}
 		else {
 			Debug.Log ("Something went wrong: size of terrain is not processable for heightmap generation");
 		}
 	}
+
+	float[,] ApplyElevationsToHeightmap( List<int> elevations, float[,] heightmapData, int width ){
+		float minELev = Mathf.Min(elevations.ToArray());//meters
+		float maxElev = Mathf.Max(elevations.ToArray());//meters
+		float maxReach = 8850; //meters -> m. everest
+		int index = 0;
+		int rows = 32;
+		float zoomScale = (float) ((centerLocation.zoom - 1.0)/(21.0 - 1.0)) * (maxElev - minELev)/minELev; //21 is max zoom value
+		
+		for (int y = 0; y < width; y+=width/rows) {
+			for (int x = 0; x < width; x+=width/rows) {
+				if (y % (width/rows) == 0 && x % (width/rows) == 0) 
+				{
+					index = (y*rows + x )/(width/rows);
+					heightmapData[y, x] = ((elevations[index] - minELev)/(maxReach - minELev)) * zoomScale; 
+				}
+				else {
+					heightmapData[y, x] = minELev; //initialize empty with min elevation
+				}
+			}
+		}
+		float distance = 0;
+		// (x, y) is a peak, adjust the other values (weighted avg according to distance to peak)
+		for (int y=0; y < width; y+=width/rows){
+			for (int x=0; x < width; x+=width/rows){
+				// each peak works on his square [x+n, y+m]
+				for (int n = 0; n < width/rows; n ++){
+					for (int m = 0; m < width/rows; m++){
+						if ((y+m) % (width/rows) != 0 || (x+n) % (width/rows) != 0) {
+							distance = Mathf.Sqrt((m*m) + (n*n));
+							heightmapData[y+m, x+n] = heightmapData[y,x] * (1 - (distance/((Mathf.Sqrt(2) * width/rows))));
+						}
+					}
+				}
+			}
+		}
+		return heightmapData;
+	}
+
+	float[,] Smooth( float[,] heightmapData , int smoothings, int neighbors, int width ) {
+		float sum =0;
+		int count = 0;
+		//smooth everything
+		for (int i=0; i < smoothings; i++){
+			for (int y=0; y < width; y++){
+				for (int x=0; x < width; x++){
+					for (int n = 0; n < neighbors; n++){
+						sum += (y-n <= 0 ? 0 : heightmapData[y-n, x]);
+						sum += (x-n <= 0 ? 0 : heightmapData[y, x-n]);
+						sum += ((x-n<=0 || y-n<=0) ? 0 : heightmapData[y-n, x-n]);
+						count += (y-n <= 0 ? 0 : 1);
+						count += (x-n <= 0 ? 0 : 1);
+						count += ((x-n<=0 || y-n<=0) ? 0 : 1);
+					}
+					heightmapData[y,x] = (heightmapData[y,x] + sum )/ (count+1);
+					sum = 0;
+					count = 0;
+				}
+			}
+		}
+		return heightmapData;
+	}
 }
-
-/*List<int> elevations = new List<int> 
-	{ 	464, 481, 459, 428,
-		693, 601, 650, 619,
-		908, 890, 950, 967,
-		1507, 1595, 1522, 1622};*/
-
-//classes for Json parsing
-//for geolocation
-
-public class Point
-{
-	public string type { get; set; }
-	public List<double> coordinates { get; set; }
-}
-
-public class Address
-{
-	public string addressLine { get; set; }
-	public string adminDistrict { get; set; }
-	public string adminDistrict2 { get; set; }
-	public string countryRegion { get; set; }
-	public string formattedAddress { get; set; }
-	public string locality { get; set; }
-	public string postalCode { get; set; }
-}
-
-public class GeocodePoint
-{
-	public string type { get; set; }
-	public List<double> coordinates { get; set; }
-	public string calculationMethod { get; set; }
-	public List<string> usageTypes { get; set; }
-}
-
-public class Resource
-{
-	public string __type { get; set; }
-	public List<double> bbox { get; set; }
-	public string name { get; set; }
-	public Point point { get; set; }
-	public Address address { get; set; }
-	public string confidence { get; set; }
-	public string entityType { get; set; }
-	public List<GeocodePoint> geocodePoints { get; set; }
-	public List<string> matchCodes { get; set; }
-}
-
-public class ResourceSet
-{
-	public int estimatedTotal { get; set; }
-	public List<Resource> resources { get; set; }
-}
-
-public class GeocodedObject
-{
-	public string authenticationResultCode { get; set; }
-	public string brandLogoUri { get; set; }
-	public string copyright { get; set; }
-	public List<ResourceSet> resourceSets { get; set; }
-	public int statusCode { get; set; }
-	public string statusDescription { get; set; }
-	public string traceId { get; set; }
-}
-
-// for map metadata
-
-public class MapCenter
-{
-	public string type { get; set; }
-	public List<string> coordinates { get; set; }
-}
-
-public class ResourceMeta
-{
-	public string __type { get; set; }
-	public List<double> bbox { get; set; }
-	public string imageHeight { get; set; }
-	public string imageWidth { get; set; }
-	public MapCenter mapCenter { get; set; }
-	public List<object> pushpins { get; set; }
-	public string zoom { get; set; }
-}
-
-public class ResourceMetaSet
-{
-	public int estimatedTotal { get; set; }
-	public List<ResourceMeta> resources { get; set; }
-}
-
-public class MetadataObject
-{
-	public string authenticationResultCode { get; set; }
-	public string brandLogoUri { get; set; }
-	public string copyright { get; set; }
-	public List<ResourceMetaSet> resourceSets { get; set; }
-	public int statusCode { get; set; }
-	public string statusDescription { get; set; }
-	public string traceId { get; set; }
-}
-
-//for elevation data
-
-public class ResourceElev
-{
-	public string __type { get; set; }
-	public List<int> elevations { get; set; }
-	public int zoomLevel { get; set; }
-}
-
-public class ResourceElevSet
-{
-	public int estimatedTotal { get; set; }
-	public List<ResourceElev> resources { get; set; }
-}
-
-public class ElevDataObject
-{
-	public string authenticationResultCode { get; set; }
-	public string brandLogoUri { get; set; }
-	public string copyright { get; set; }
-	public List<ResourceElevSet> resourceSets { get; set; }
-	public int statusCode { get; set; }
-	public string statusDescription { get; set; }
-	public string traceId { get; set; }
-}
-
-
