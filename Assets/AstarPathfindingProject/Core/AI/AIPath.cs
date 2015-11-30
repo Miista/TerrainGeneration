@@ -46,8 +46,7 @@ public class AIPath : MonoBehaviour {
 	 * The AI will try to follow/move towards this target.
 	 * It can be a point on the ground where the player has clicked in an RTS for example, or it can be the player object in a zombie game.
 	 */
-	public Vector3 target;
-    public Transform chaseTarget;
+	public Vector3 Target;
 
 	/** Enables or disables searching for paths.
 	 * Setting this to false does not stop any active path requests from being calculated or stop it from continuing to follow the current path.
@@ -221,7 +220,7 @@ public class AIPath : MonoBehaviour {
 	 * \returns The time to wait until calling this function again (based on #repathRate)
 	 */
 	public float TrySearchPath () {
-		if (Time.time - lastRepath >= repathRate && canSearchAgain && canSearch && target != null) {
+		if (Time.time - lastRepath >= repathRate && canSearchAgain && canSearch && Target != null) {
 			SearchPath ();
 			return repathRate;
 		} else {
@@ -234,11 +233,11 @@ public class AIPath : MonoBehaviour {
 	/** Requests a path to the target */
 	public virtual void SearchPath () {
 
-		if (target == null) throw new System.InvalidOperationException ("Target is null");
+		if (Target == null) throw new System.InvalidOperationException ("Target is null");
 
 		lastRepath = Time.time;
 		//This is where we should search to
-		Vector3 targetPosition = chaseTarget == null ? target : chaseTarget.position;
+		Vector3 targetPosition = Target;
 
 		canSearchAgain = false;
 
