@@ -6,9 +6,16 @@ namespace Assets.Animalz
     public class BaseMovement : MonoBehaviour
     {
         public float MovementSpeed = 5f, RunSpeed = 10f;
+        public bool CanMove = true;
 
         //BaseMovement using character
         protected CharacterController CharController;
+
+        public void Start()
+        {
+            var prototype = AiPrototype.ExtractPrototypeInfo(this);
+            CanMove = prototype.MovmentPreferences.IsMoving;
+        }
 
         public Vector3 Velocity()
         {

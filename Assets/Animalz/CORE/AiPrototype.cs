@@ -15,6 +15,8 @@ namespace Assets.Animalz
         //RankingPreferences variables
         public RankingPref RankingPreferences;
 
+        public MovePref MovmentPreferences;
+
         void Start()
         {
             //Actual AiRig Implementation
@@ -62,6 +64,7 @@ namespace Assets.Animalz
     [Serializable]
     public class MovePref
     {
+        public bool IsMoving = true;
         public int MoveSpeed = 1, RunSpeed = 2;
     }
 }

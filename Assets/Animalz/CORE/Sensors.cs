@@ -140,8 +140,8 @@ namespace Assets.Animalz
                 RaycastHit ray;
                 if (Physics.Raycast(transform.position, direction, out ray))
                 {
-                    var otherAnimal = other.GetComponentInParent<Animal>();
-                    var collidedAnimal = ray.collider.GetComponentInParent<Animal>();
+                    var otherAnimal = other.GetComponentInParent<AiRig>();
+                    var collidedAnimal = ray.collider.GetComponentInParent<AiRig>();
                     if (collidedAnimal == otherAnimal)
                     {
                         ReportDetection(other);
@@ -190,6 +190,7 @@ namespace Assets.Animalz
 
         public void Update()
         {
+            loadVars();
             if (Collider.radius != Range)
             {
                 Collider.radius = Range;
