@@ -328,7 +328,7 @@ public interface ITerrainProvider
 
 class ColorProvider : ITerrainProvider
 {
-    private List<Color> colors = new List<Color>
+    private readonly List<Color> _colors = new List<Color>
     {
         Color.green,
         Color.cyan,
@@ -341,7 +341,7 @@ class ColorProvider : ITerrainProvider
         Color.white
     };
 
-    private int n;
+    private int _index;
 
     public GameObject CreateTerrain(Vector3 cellSize, Vector3 center )
     {
@@ -349,11 +349,11 @@ class ColorProvider : ITerrainProvider
         primitive.GetComponent<Renderer>()
                  .material = new Material(Shader.Find("Diffuse"))
                  {
-                     color = colors[n % 9]
+                     color = _colors[_index % 9]
                  };
         primitive.transform.transform.localScale = new Vector3(cellSize.x, cellSize.y, cellSize.z);
         primitive.transform.transform.position = center;
-        n++;
+        _index++;
         return primitive;
     }
 
@@ -362,7 +362,7 @@ class ColorProvider : ITerrainProvider
     }
 }
 
-public class Comparer : IEqualityComparer<Vector3>
+internal class Comparer : IEqualityComparer<Vector3>
 {
     public bool Equals(Vector3 x, Vector3 y)
     {
